@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:7
+    container_name: fitforge-mongodb
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: fitforge
+    restart: unless-stopped
+
+  mongo-express:
+    image: mongo-express
+    container_name: fitforge-mongo-admin
+    ports:
+      - '8081:8081'
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/fitforge
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+volumes:
+  mongo-data:

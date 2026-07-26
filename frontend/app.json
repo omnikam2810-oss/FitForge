@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "FitForge",
+    "slug": "fitforge",
+    "scheme": "fitforge",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
