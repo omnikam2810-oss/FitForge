@@ -6,6 +6,7 @@ const router = Router();
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/social-login', authController.socialLogin);
 router.post('/refresh-token', authController.refreshToken);
 router.post('/logout', authMiddleware, authController.logout);
 

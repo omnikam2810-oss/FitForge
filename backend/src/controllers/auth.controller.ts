@@ -31,6 +31,15 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+export const socialLogin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await authService.socialLoginUser(req.body);
+    return success(res, data, 'Social login successful');
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (req.user) {
