@@ -1,5 +1,7 @@
 import { apiClient } from './client';
 
+const unwrap = <T>(response: any): T => response.data.data ?? response.data;
+
 export interface CommunityPost {
   id: string;
   userId: string;
@@ -12,12 +14,12 @@ export interface CommunityPost {
 
 export const getFeed = async (): Promise<CommunityPost[]> => {
   const response = await apiClient.get('/community/feed');
-  return response.data;
+  return unwrap(response);
 };
 
 export const createPost = async (content: string): Promise<CommunityPost> => {
   const response = await apiClient.post('/community/posts', { content });
-  return response.data;
+  return unwrap(response);
 };
 
 export const likePost = async (postId: string): Promise<void> => {

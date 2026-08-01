@@ -21,7 +21,13 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    if (req.originalUrl?.startsWith('/api/v1/subscriptions/webhook')) {
+      (req as any).rawBody = buf;
+    }
+  },
+}));
 app.use(rateLimiter);
 
 app.use('/api/v1/auth', authRoutes);

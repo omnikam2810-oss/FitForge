@@ -27,3 +27,8 @@ export const repeatLastWorkout = async (): Promise<Workout> => {
   const response = await apiClient.get('/workouts/repeat-last');
   return unwrap(response);
 };
+
+export const getWorkoutSummary = async (): Promise<any> => {
+  const response = await apiClient.get('/workouts/analytics/summary');
+  return unwrap(response);
+};
