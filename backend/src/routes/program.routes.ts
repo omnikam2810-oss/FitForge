@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { premiumMiddleware } from '../middleware/premium.middleware';
 import { Program } from '../models/Program';
 import { success, error } from '../utils/apiResponse';
+import { ensureDefaultPrograms } from '../utils/defaultData';
 
 const router = Router();
 router.use(authMiddleware);
@@ -15,6 +16,7 @@ router.get('/', async (req, res, next) => {
     if (type) filter.type = type;
     if (equipment) filter.requiredEquipment = { $all: String(equipment).split(',').map((item) => item.trim()) };
 
+    await ensureDefaultPrograms();
     const programs = await Program.find(filter).sort({ difficulty: 1, subscriberCount: -1 });
     return success(res, programs);
   } catch (err) {

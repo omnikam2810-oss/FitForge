@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { premiumMiddleware } from '../middleware/premium.middleware';
 import { Exercise } from '../models/Exercise';
 import { success, error } from '../utils/apiResponse';
+import { ensureDefaultExercises } from '../utils/defaultData';
 
 const router = Router();
 router.use(authMiddleware);
@@ -19,6 +20,7 @@ router.get('/', async (req, res, next) => {
     if (muscle) filter.primaryMuscles = { $in: String(muscle).split(',').map((item) => item.trim()) };
     if (premium !== 'true') filter.isPremium = false;
 
+    await ensureDefaultExercises();
     const exercises = await Exercise.find(filter).sort({ name: 1 });
     return success(res, exercises);
   } catch (err) {
