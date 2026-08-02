@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -23,8 +23,10 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json({
   verify: (req, res, buf) => {
-    if (req.originalUrl?.startsWith('/api/v1/subscriptions/webhook')) {
-      (req as any).rawBody = buf;
+    const request = req as Request;
+
+    if (request.originalUrl?.startsWith('/api/v1/subscriptions/webhook')) {
+      (request as any).rawBody = buf;
     }
   },
 }));

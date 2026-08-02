@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import Stripe from 'stripe';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { stripe } from '../config/stripe';
 import { env } from '../config/env';
@@ -46,9 +47,9 @@ router.post('/webhook', async (req, res, next) => {
         subscription.canceledAt = stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : undefined;
         await subscription.save();
       } else {
-        let userId = stripeSubscription.metadata?.userId;
+        let userId = (stripeSubscription as any).metadata?.userId;
         if (!userId && stripeCustomerId) {
-          const customer = await stripe.customers.retrieve(stripeCustomerId);
+          const customer = await stripe.customers.retrieve(stripeCustomerId) as Stripe.Customer;
           if (customer && typeof customer.metadata === 'object') {
             userId = customer.metadata.userId as string;
           }
