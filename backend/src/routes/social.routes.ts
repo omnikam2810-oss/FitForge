@@ -11,6 +11,7 @@ router.post('/follow/:userId', async (req, res, next) => {
   try {
     const following = req.params.userId;
     const follower = req.user?._id;
+    if (!follower) return error(res, 'Unauthorized', 401);
     if (follower.toString() === following) return error(res, 'Cannot follow yourself', 400);
 
     const follow = await Follow.create({ follower, following });

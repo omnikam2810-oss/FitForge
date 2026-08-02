@@ -57,7 +57,6 @@ export const updateProfileSchema = Joi.object({
 }).unknown(false);
 
 export const onboardingSchema = Joi.object({
-  goal: Joi.string().required(),
   experienceLevel: Joi.string().required(),
   weeklyFrequency: Joi.number().required(),
   goals: Joi.array().optional(),

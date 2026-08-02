@@ -1,9 +1,19 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
 let _store: any = null;
 export const injectStore = (store: any) => { _store = store; };
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const getDefaultApiUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  return Platform.OS === 'android' ? 'http://10.0.2.2:5000/api/v1' : 'http://localhost:5000/api/v1';
+};
+
+const API_URL = getDefaultApiUrl();
 
 export const apiClient = axios.create({
   baseURL: API_URL,

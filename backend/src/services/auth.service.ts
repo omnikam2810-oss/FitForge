@@ -6,8 +6,11 @@ export const registerUser = async (data: any) => {
   const existingUser = await User.findOne({ email: data.email });
   if (existingUser) throw new AppError('Email already in use', 400);
 
+  const displayName = data.displayName || [data.firstName, data.lastName].filter(Boolean).join(' ').trim();
+
   const user = await User.create({
     ...data,
+    displayName,
     passwordHash: data.passwordHash ?? data.password,
     authProvider: 'email',
   });

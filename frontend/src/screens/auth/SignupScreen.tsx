@@ -34,7 +34,12 @@ export function SignupScreen({ navigation }: NativeStackScreenProps<any>) {
     setLoading(true);
     setError(null);
     try {
-      await register(email, password, `${firstName} ${lastName}`);
+      await register({
+        email,
+        password,
+        firstName,
+        lastName,
+      });
       // Navigation is handled by auth state observer
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
