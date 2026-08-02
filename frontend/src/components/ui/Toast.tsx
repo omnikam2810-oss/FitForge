@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 export interface ToastProps {
   message: string;
@@ -11,7 +11,7 @@ export interface ToastProps {
 }
 
 export function Toast({ message, type = 'info', duration = 3000, onHide }: ToastProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {

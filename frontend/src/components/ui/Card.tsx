@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, ViewProps } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 export function Card({ style, children, ...props }: ViewProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
 
   return (
     <View

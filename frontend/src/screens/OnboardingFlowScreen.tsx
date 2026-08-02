@@ -6,6 +6,8 @@ import { useTheme } from '../theme/ThemeProvider';
 import { setUserProfile } from '../store/slices/userSlice';
 import { submitOnboarding } from '../api/user.api';
 
+import { setShowOnboarding } from '../store/slices/uiSlice';
+
 const goalOptions = [
   { label: 'Strength', value: 'strength' },
   { label: 'Fat loss', value: 'fat_loss' },
@@ -64,7 +66,7 @@ export const OnboardingFlowScreen: React.FC = () => {
         })
       );
 
-      Alert.alert('Onboarding complete', 'Your profile has been saved.');
+      dispatch(setShowOnboarding(false));
     } catch (err: any) {
       Alert.alert('Onboarding failed', err?.message ?? 'Unable to complete onboarding.');
     } finally {

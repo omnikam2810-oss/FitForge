@@ -33,8 +33,8 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [themeType, setThemeType] = useState<ThemeType>('system');
-  const [isDark, setIsDark] = useState<boolean>(systemColorScheme === 'dark');
+  const [themeType, setThemeType] = useState<ThemeType>('dark');
+  const [isDark, setIsDark] = useState<boolean>(true);
 
   useEffect(() => {
     if (themeType === 'system') {

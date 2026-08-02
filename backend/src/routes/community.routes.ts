@@ -3,7 +3,7 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { premiumMiddleware } from '../middleware/premium.middleware';
 import { Challenge } from '../models/Challenge';
 import { Workout } from '../models/Workout';
-import { success } from '../utils/apiResponse';
+import { success, error } from '../utils/apiResponse';
 import { ensureDefaultChallenges } from '../utils/defaultData';
 
 const router = Router();
@@ -32,17 +32,50 @@ router.get('/feed', async (req, res, next) => {
   }
 });
 
-router.post('/posts', (req, res) => success(res, {
-  id: new Date().getTime().toString(),
-  userId: req.user?._id,
-  userName: req.user?.displayName,
-  content: req.body.content,
-  likes: 0,
-  comments: 0,
-  createdAt: new Date(),
-}, 'Post created', 201));
+import { Post } from '../models/Post';
 
-router.post('/posts/:id/like', (req, res) => success(res, { id: req.params.id }, 'Post liked'));
+router.post('/posts', async (req, res, next) => {
+  try {
+    const post = await Post.create({
+      userId: req.user?._id,
+      content: req.body.content
+    });
+    return success(res, post, 'Post created', 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/posts/:id/like', async (req, res, next) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return error(res, 'Post not found', 404);
+    
+    const userId = req.user?._id;
+    const index = post.likes.indexOf(userId as any);
+    
+    if (index === -1) {
+      post.likes.push(userId as any);
+    } else {
+      post.likes.splice(index, 1);
+    }
+    
+    await post.save();
+    return success(res, post, 'Post updated');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/posts/:id', async (req, res, next) => {
+  try {
+    const post = await Post.findOneAndDelete({ _id: req.params.id, userId: req.user?._id });
+    if (!post) return error(res, 'Post not found or unauthorized', 404);
+    return success(res, null, 'Post deleted');
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/challenges', async (req, res, next) => {
   try {

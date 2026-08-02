@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewProps } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 interface BadgeProps extends ViewProps {
   label: string;
@@ -8,7 +8,7 @@ interface BadgeProps extends ViewProps {
 }
 
 export function Badge({ label, variant = 'default', style, ...props }: BadgeProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
 
   const getColors = () => {
     switch (variant) {

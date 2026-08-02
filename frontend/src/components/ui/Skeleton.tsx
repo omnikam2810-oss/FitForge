@@ -7,7 +7,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 interface SkeletonProps {
   width?: DimensionValue;
@@ -16,7 +16,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ width = '100%', height = 20, borderRadius = 4 }: SkeletonProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
   const opacity = useSharedValue(0.3);
 
   useEffect(() => {

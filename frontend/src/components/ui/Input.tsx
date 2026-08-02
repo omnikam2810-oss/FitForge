@@ -1,6 +1,6 @@
 import React from 'react';
 import { TextInput, TextInputProps, View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -8,7 +8,7 @@ interface InputProps extends TextInputProps {
 }
 
 export function Input({ label, error, style, ...props }: InputProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
 
   return (
     <View style={styles.container}>

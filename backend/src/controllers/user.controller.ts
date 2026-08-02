@@ -13,15 +13,11 @@ export const getProfile = async (req: Request, res: Response, next: NextFunction
 export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const allowedFields = [
-      'displayName',
+      'firstName',
+      'lastName',
       'avatarUrl',
-      'dateOfBirth',
-      'gender',
-      'unitSystem',
-      'darkMode',
-      'notificationsEnabled',
-      'reminderSchedule',
-      'expoPushToken',
+      'preferredUnits',
+      'notifications',
     ];
 
     for (const field of allowedFields) {

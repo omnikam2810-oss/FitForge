@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, TouchableOpacityProps } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
@@ -9,7 +9,7 @@ interface ButtonProps extends TouchableOpacityProps {
 }
 
 export function Button({ title, variant = 'primary', isLoading, style, disabled, ...props }: ButtonProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
 
   const getVariantStyles = () => {
     switch (variant) {

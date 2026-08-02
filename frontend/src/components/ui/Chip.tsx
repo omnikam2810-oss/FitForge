@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 interface ChipProps extends TouchableOpacityProps {
   label: string;
@@ -8,7 +8,7 @@ interface ChipProps extends TouchableOpacityProps {
 }
 
 export function Chip({ label, selected, style, ...props }: ChipProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
 
   return (
     <TouchableOpacity

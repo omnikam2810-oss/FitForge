@@ -8,7 +8,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAX_TRANSLATE_Y = -SCREEN_HEIGHT + 50;
@@ -21,7 +21,7 @@ interface BottomSheetProps {
 }
 
 export function BottomSheet({ isVisible, onClose, children, height = SCREEN_HEIGHT * 0.5 }: BottomSheetProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
   const translateY = useSharedValue(0);
   const active = useSharedValue(false);
 

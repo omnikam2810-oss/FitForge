@@ -16,20 +16,17 @@ import coachRoutes from './routes/coach.routes';
 import communityRoutes from './routes/community.routes';
 import healthRoutes from './routes/health.routes';
 
+import socialRoutes from './routes/social.routes';
+import aiTrainerRoutes from './routes/aiTrainer.routes';
+import exportRoutes from './routes/export.routes';
+
 const app = express();
 
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
-app.use(express.json({
-  verify: (req, res, buf) => {
-    const request = req as Request;
-
-    if (request.originalUrl?.startsWith('/api/v1/subscriptions/webhook')) {
-      (request as any).rawBody = buf;
-    }
-  },
-}));
+app.use('/api/v1/subscriptions/webhook', express.raw({ type: 'application/json' }));
+app.use(express.json());
 app.use(rateLimiter);
 
 app.use('/api/v1/auth', authRoutes);
@@ -42,6 +39,9 @@ app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/coach', coachRoutes);
 app.use('/api/v1/community', communityRoutes);
 app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/social', socialRoutes);
+app.use('/api/v1/ai-trainer', aiTrainerRoutes);
+app.use('/api/v1/export', exportRoutes);
 
 app.use(errorHandler);
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '../../theme/ThemeProvider';
 import { Button } from './Button';
 
 interface ErrorStateProps {
@@ -10,7 +10,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ title = 'Something went wrong', message, onRetry }: ErrorStateProps) {
-  const theme = useTheme();
+  const { theme } = useTheme();
 
   return (
     <View style={styles.container}>

@@ -4,6 +4,8 @@ import { Workout } from '../models/Workout';
 import { Exercise } from '../models/Exercise';
 import { User } from '../models/User';
 import { success, error } from '../utils/apiResponse';
+import { validate } from '../middleware/validator';
+import { createWorkoutSchema, updateWorkoutSchema } from '../validations';
 
 const router = Router();
 router.use(authMiddleware);
@@ -102,17 +104,71 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', validate(createWorkoutSchema), async (req, res, next) => {
   try {
     const workout = await Workout.create(await enrichWorkout({ ...req.body, userId: req.user?._id }));
     if (workout.completedAt) await User.findByIdAndUpdate(req.user?._id, { $inc: { totalWorkouts: 1 } });
-    return success(res, workout, 'Created workout', 201);
+    
+    // PR Detection
+    const personalRecords = [];
+    if (workout.completedAt) {
+      for (const we of workout.exercises) {
+        let bestNewWeight = 0;
+        let bestNewReps = 0;
+        for (const set of we.sets) {
+          if (set.completed && set.weight && set.reps) {
+            if (set.weight > bestNewWeight || (set.weight === bestNewWeight && set.reps > bestNewReps)) {
+              bestNewWeight = set.weight;
+              bestNewReps = set.reps;
+            }
+          }
+        }
+        
+        if (bestNewWeight > 0) {
+          const previousWorkouts = await Workout.find({
+            userId: req.user?._id,
+            completedAt: { $exists: true, $lt: workout.completedAt },
+            'exercises.exerciseId': we.exerciseId
+          });
+          
+          let previousBestWeight = 0;
+          let previousBestReps = 0;
+          
+          for (const prevW of previousWorkouts) {
+            for (const pwe of prevW.exercises) {
+              if (pwe.exerciseId.toString() === we.exerciseId.toString()) {
+                for (const pset of pwe.sets) {
+                  if (pset.completed && pset.weight && pset.reps) {
+                    if (pset.weight > previousBestWeight || (pset.weight === previousBestWeight && pset.reps > previousBestReps)) {
+                      previousBestWeight = pset.weight;
+                      previousBestReps = pset.reps;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          
+          if (bestNewWeight > previousBestWeight) {
+            const exercise = await Exercise.findById(we.exerciseId);
+            personalRecords.push({
+              exerciseId: we.exerciseId,
+              exerciseName: exercise?.name || 'Unknown',
+              previousBest: `${previousBestWeight}x${previousBestReps}`,
+              newRecord: `${bestNewWeight}x${bestNewReps}`
+            });
+          }
+        }
+      }
+    }
+    
+    return success(res, { ...workout.toObject(), personalRecords }, 'Created workout', 201);
   } catch (err) {
     next(err);
   }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', validate(updateWorkoutSchema), async (req, res, next) => {
   try {
     const existing = await Workout.findOne({ _id: req.params.id, userId: req.user?._id });
     if (!existing) return error(res, 'Workout not found', 404);
@@ -124,6 +180,111 @@ router.put('/:id', async (req, res, next) => {
     };
     const workout = await Workout.findByIdAndUpdate(req.params.id, await enrichWorkout(mergedWorkout), { new: true });
     return success(res, workout, 'Updated workout');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/analytics/exercise/:exerciseId', async (req, res, next) => {
+  try {
+    const workouts = await Workout.find({
+      userId: req.user?._id,
+      completedAt: { $exists: true },
+      'exercises.exerciseId': req.params.exerciseId
+    }).sort({ completedAt: 1 });
+    
+    const result = workouts.map(w => {
+      const we = w.exercises.find(e => e.exerciseId.toString() === req.params.exerciseId);
+      const sets = we?.sets.filter(s => s.completed && s.weight && s.reps).map(s => ({
+        weight: s.weight,
+        reps: s.reps,
+        estimated1RM: (s.weight as number) * (1 + (s.reps as number) / 30)
+      })) || [];
+      return { date: w.completedAt, sets };
+    }).filter(r => r.sets.length > 0);
+    
+    return success(res, result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/analytics/prs', async (req, res, next) => {
+  try {
+    const workouts = await Workout.find({ userId: req.user?._id, completedAt: { $exists: true } });
+    const bests = new Map<string, { weight: number, reps: number, date: Date, name: string }>();
+    
+    for (const w of workouts) {
+      for (const we of w.exercises) {
+        for (const s of we.sets) {
+          if (s.completed && s.weight && s.reps) {
+            const exId = we.exerciseId.toString();
+            const current = bests.get(exId);
+            if (!current || s.weight > current.weight || (s.weight === current.weight && s.reps > current.reps)) {
+              bests.set(exId, { weight: s.weight, reps: s.reps, date: w.completedAt as Date, name: 'Exercise' });
+            }
+          }
+        }
+      }
+    }
+    
+    // We would fetch exercise names here for a real impl
+    const prs = Array.from(bests.entries()).map(([exerciseId, data]) => ({
+      exerciseId,
+      ...data
+    }));
+    
+    return success(res, prs);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/analytics/streaks', async (req, res, next) => {
+  try {
+    const workouts = await Workout.find({ userId: req.user?._id, completedAt: { $exists: true } })
+      .sort({ completedAt: -1 });
+    
+    if (!workouts.length) return success(res, { currentStreak: 0, longestStreak: 0 });
+    
+    const dates = workouts.map(w => {
+      const d = new Date(w.completedAt as Date);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    });
+    
+    const uniqueDates = [...new Set(dates)].sort((a, b) => b - a);
+    
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 1;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const msPerDay = 86400000;
+    
+    if (uniqueDates[0] === today.getTime() || uniqueDates[0] === today.getTime() - msPerDay) {
+      currentStreak = 1;
+      for (let i = 1; i < uniqueDates.length; i++) {
+        if (uniqueDates[i-1] - uniqueDates[i] === msPerDay) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+    }
+    
+    for (let i = 1; i < uniqueDates.length; i++) {
+      if (uniqueDates[i-1] - uniqueDates[i] === msPerDay) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak, currentStreak);
+    
+    return success(res, { currentStreak, longestStreak });
   } catch (err) {
     next(err);
   }

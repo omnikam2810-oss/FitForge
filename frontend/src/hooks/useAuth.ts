@@ -1,40 +1,72 @@
 import { useState, useCallback } from 'react';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-}
+import { useDispatch, useSelector } from 'react-redux';
+import * as SecureStore from 'expo-secure-store';
+import { RootState, AppDispatch } from '../store/store';
+import { setAuthSuccess, setAuthLoading, setAuthError, logout as clearAuth } from '../store/slices/authSlice';
+import { setUserProfile, clearUserProfile } from '../store/slices/userSlice';
+import { setShowOnboarding } from '../store/slices/uiSlice';
+import * as authApi from '../api/auth.api';
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
+  const { isAuthenticated, loading, error } = useSelector((state: RootState) => state.auth);
+  const user = useSelector((state: RootState) => state.user.profile);
 
   const login = useCallback(async (email: string, password: string) => {
-    setIsLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setUser({ id: '1', name: 'John Doe', email });
-    } finally {
-      setIsLoading(false);
+      dispatch(setAuthLoading(true));
+      const result = await authApi.login(email, password);
+      dispatch(setAuthSuccess(result.token));
+      dispatch(setUserProfile(result.user));
+      if (!result.user.onboardingCompleted) {
+        dispatch(setShowOnboarding(true));
+      } else {
+        dispatch(setShowOnboarding(false));
+      }
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Login failed';
+      dispatch(setAuthError(message));
+      throw err;
     }
-  }, []);
+  }, [dispatch]);
 
-  const logout = useCallback(async () => {
-    setIsLoading(true);
+  const register = useCallback(async (data: { email: string; password: string; firstName: string; lastName: string }) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setUser(null);
-    } finally {
-      setIsLoading(false);
+      dispatch(setAuthLoading(true));
+      const result = await authApi.register(data);
+      dispatch(setAuthSuccess(result.token));
+      dispatch(setUserProfile(result.user));
+      dispatch(setShowOnboarding(true));
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message || 'Registration failed';
+      dispatch(setAuthError(message));
+      throw err;
     }
-  }, []);
+  }, [dispatch]);
 
-  return {
-    user,
-    isAuthenticated: !!user,
-    isLoading,
-    login,
-    logout,
-  };
+  const logoutUser = useCallback(async () => {
+    await SecureStore.deleteItemAsync('auth_token');
+    await SecureStore.deleteItemAsync('refresh_token');
+    dispatch(clearAuth());
+    dispatch(clearUserProfile());
+  }, [dispatch]);
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync('auth_token');
+      if (token) {
+        dispatch(setAuthLoading(true));
+        const user = await authApi.fetchCurrentUser();
+        dispatch(setAuthSuccess(token));
+        dispatch(setUserProfile(user));
+        dispatch(setShowOnboarding(!user.onboardingCompleted));
+      }
+    } catch {
+      await SecureStore.deleteItemAsync('auth_token');
+      await SecureStore.deleteItemAsync('refresh_token');
+      dispatch(clearAuth());
+    }
+  }, [dispatch]);
+
+  return { isAuthenticated, loading, error, user, login, register, logout: logoutUser, checkAuth };
 }

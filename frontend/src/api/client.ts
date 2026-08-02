@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { store } from '../store/store';
-import { logout as clearAuth } from '../store/slices/authSlice';
+let _store: any = null;
+export const injectStore = (store: any) => { _store = store; };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
@@ -49,7 +49,10 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         await SecureStore.deleteItemAsync('auth_token');
         await SecureStore.deleteItemAsync('refresh_token');
-        store.dispatch(clearAuth());
+        if (_store) {
+          const { logout } = require('../store/slices/authSlice');
+          _store.dispatch(logout());
+        }
       }
     }
 

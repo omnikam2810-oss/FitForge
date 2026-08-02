@@ -41,7 +41,10 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+import { validate } from '../middleware/validator';
+import { createExerciseSchema } from '../validations';
+
+router.post('/', validate(createExerciseSchema), async (req, res, next) => {
   try {
     const exercise = await Exercise.create({ ...req.body, isCustom: true, createdBy: req.user?._id });
     return success(res, exercise, 'Created exercise', 201);
