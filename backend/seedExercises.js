@@ -1,10 +1,18 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 const mongoose = require('mongoose');
+const cloudinary = require('cloudinary').v2;
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/fitforge';
 const datasetPath = path.join(__dirname, 'exercises.json');
+const cloudinaryConfigured = Boolean(process.env.CLOUDINARY_URL && !String(process.env.CLOUDINARY_URL).includes('placeholder'));
+
+if (cloudinaryConfigured) {
+  cloudinary.config({ secure: true });
+}
 
 const exerciseSchema = new mongoose.Schema({
   name: { type: String, required: true, index: true },
@@ -80,11 +88,67 @@ const normalizeDifficulty = (value) => {
 
 const slugify = (value) => String(value).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-const buildExerciseDoc = (entry) => {
+const downloadBuffer = (url) => new Promise((resolve, reject) => {
+  const client = url.startsWith('https') ? https : http;
+  client.get(url, (response) => {
+    if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+      resolve(downloadBuffer(response.headers.location));
+      return;
+    }
+
+    if (response.statusCode !== 200) {
+      reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
+      return;
+    }
+
+    const chunks = [];
+    response.on('data', (chunk) => chunks.push(chunk));
+    response.on('end', () => resolve(Buffer.concat(chunks)));
+  }).on('error', reject);
+});
+
+const uploadImageToCloudinary = async (imageUrl, exerciseName) => {
+  if (!cloudinaryConfigured) {
+    return imageUrl;
+  }
+
+  try {
+    const buffer = await downloadBuffer(imageUrl);
+    const result = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          public_id: slugify(`${exerciseName}-${path.basename(new URL(imageUrl).pathname)}`),
+          folder: 'fitforge/exercises',
+          resource_type: 'image',
+        },
+        (error, uploaded) => {
+          if (error) reject(error);
+          else resolve(uploaded);
+        }
+      );
+
+      uploadStream.end(buffer);
+    });
+
+    return result.secure_url;
+  } catch (error) {
+    console.warn(`Cloudinary upload failed for ${exerciseName}: ${error.message}`);
+    return imageUrl;
+  }
+};
+
+const buildExerciseDoc = async (entry) => {
   const primaryMuscles = (entry.primaryMuscles || []).map((muscle) => String(muscle).trim()).filter(Boolean);
   const secondaryMuscles = (entry.secondaryMuscles || []).map((muscle) => String(muscle).trim()).filter(Boolean);
   const instructions = Array.isArray(entry.instructions) ? entry.instructions.filter(Boolean) : [];
-  const imageUrls = Array.isArray(entry.images) ? entry.images.map((image) => `https://raw.githubusercontent.com/yuhonas/free-exercise-db/master/exercises/${image}`) : [];
+  const sourceImages = Array.isArray(entry.images)
+    ? entry.images.map((image) => `https://raw.githubusercontent.com/yuhonas/free-exercise-db/master/exercises/${image}`)
+    : [];
+
+  const imageUrls = [];
+  for (const imageUrl of sourceImages) {
+    imageUrls.push(await uploadImageToCloudinary(imageUrl, entry.name));
+  }
 
   return {
     name: entry.name,
@@ -114,7 +178,10 @@ const buildExerciseDoc = (entry) => {
     console.log(`Connected to MongoDB at ${uri}`);
 
     const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
-    const docs = dataset.map(buildExerciseDoc);
+    const docs = [];
+    for (const entry of dataset) {
+      docs.push(await buildExerciseDoc(entry));
+    }
 
     const inserted = [];
     const skipped = [];
@@ -124,6 +191,16 @@ const buildExerciseDoc = (entry) => {
       try {
         const existing = await Exercise.findOne({ slug: doc.slug });
         if (existing) {
+          await Exercise.updateOne(
+            { _id: existing._id },
+            {
+              $set: {
+                ...doc,
+                slug: existing.slug,
+                source: 'seeded',
+              },
+            }
+          );
           skipped.push(doc.name);
           continue;
         }
