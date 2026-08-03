@@ -14,6 +14,7 @@ export interface IExercise extends Document {
   videoUrl?: string;
   thumbnailUrl?: string;
   imageUrls?: string[];
+  source?: string;
   isCustom: boolean;
   createdBy?: mongoose.Types.ObjectId;
   isPremium: boolean;
@@ -35,6 +36,7 @@ const ExerciseSchema = new Schema<IExercise>(
     videoUrl: { type: String },
     thumbnailUrl: { type: String },
     imageUrls: [{ type: String }],
+    source: { type: String, default: 'manual' },
     isCustom: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
     isPremium: { type: Boolean, default: false },

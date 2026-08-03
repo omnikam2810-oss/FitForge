@@ -6,7 +6,6 @@ import { success, error } from '../utils/apiResponse';
 import { ensureDefaultExercises } from '../utils/defaultData';
 
 const router = Router();
-router.use(authMiddleware);
 
 router.get('/', async (req, res, next) => {
   try {
@@ -43,6 +42,8 @@ router.get('/:id', async (req, res, next) => {
 
 import { validate } from '../middleware/validator';
 import { createExerciseSchema } from '../validations';
+
+router.use(authMiddleware);
 
 router.post('/', validate(createExerciseSchema), async (req, res, next) => {
   try {

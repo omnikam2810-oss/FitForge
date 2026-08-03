@@ -1,7 +1,21 @@
 import { apiClient } from './client';
 import { Exercise } from '../store/slices/exerciseSlice';
 
-const unwrap = <T>(response: any): T => response.data.data ?? response.data;
+const normalizeExercise = (exercise: any) => ({
+  ...exercise,
+  id: exercise?.id ?? exercise?._id ?? '',
+  _id: exercise?._id ?? exercise?.id ?? '',
+});
+
+const unwrap = <T>(response: any): T => {
+  const payload = response.data.data ?? response.data;
+
+  if (Array.isArray(payload)) {
+    return payload.map(normalizeExercise) as T;
+  }
+
+  return normalizeExercise(payload) as T;
+};
 
 export const getExercises = async (params?: {
   q?: string;
