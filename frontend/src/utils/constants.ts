@@ -1,11 +1,18 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const getDefaultApiUrl = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  const expoExtra = (Constants.expoConfig?.extra || (Constants.manifest as any)?.extra) as any;
+  const extraApiUrl = expoExtra?.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_URL;
+  if (extraApiUrl) {
+    return extraApiUrl;
   }
 
-  return Platform.OS === 'android' ? 'http://10.0.2.2:5000/api/v1' : 'http://localhost:5000/api/v1';
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:5000/api/v1';
+  }
+
+  return 'http://localhost:5000/api/v1';
 };
 
 export const API_URL = getDefaultApiUrl();

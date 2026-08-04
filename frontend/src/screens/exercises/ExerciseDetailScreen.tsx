@@ -73,6 +73,8 @@ export const ExerciseDetailScreen = () => {
           </View>
         </ScrollView>
       )}
+    </AppShell>
+  );
 };
 
 const styles = StyleSheet.create({
