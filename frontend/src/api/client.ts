@@ -13,11 +13,9 @@ const getDefaultApiUrl = () => {
     return extraApiUrl;
   }
 
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api/v1';
-  }
-
-  return 'http://localhost:5000/api/v1';
+  // Fallback for physical device testing on the same Wi-Fi network.
+  // Replace with your machine's IP if needed.
+  return 'http://192.168.0.101:5000/api/v1';
 };
 
 const API_URL = getDefaultApiUrl();

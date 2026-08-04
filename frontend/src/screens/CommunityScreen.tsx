@@ -27,7 +27,7 @@ export const CommunityScreen: React.FC = () => {
   }, []);
 
   return (
-    <AppShell title="Community" subtitle="Stay motivated with others">
+    <AppShell title="Community" subtitle="Stay motivated with others" scrollable={false}>
       {loading ? (
         <ActivityIndicator color={theme.colors.brand.primary} style={{ marginTop: 24 }} />
       ) : error ? (

@@ -83,7 +83,7 @@ export const ExerciseBrowserScreen = () => {
   );
 
   return (
-    <AppShell title="Exercises">
+    <AppShell title="Exercises" scrollable={false}>
       <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface.card }]}> 
         <TextInput
           placeholder="Search exercises..."

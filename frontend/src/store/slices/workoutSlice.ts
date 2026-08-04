@@ -27,11 +27,13 @@ export interface Workout {
   exercises: WorkoutExercise[];
   durationMinutes: number;
   completed: boolean;
+  completedAt?: string;
 }
 
 interface WorkoutState {
   currentWorkout: Workout | null;
   history: Workout[];
+  lastCompletedWorkout: Workout | null;
   summary: any | null;
   activeExerciseIndex: number;
   loading: boolean;
@@ -41,6 +43,7 @@ interface WorkoutState {
 const initialState: WorkoutState = {
   currentWorkout: null,
   history: [],
+  lastCompletedWorkout: null,
   summary: null,
   activeExerciseIndex: 0,
   loading: false,
@@ -98,10 +101,16 @@ const workoutSlice = createSlice({
     finishWorkout: (state) => {
       if (state.currentWorkout) {
         state.currentWorkout.completed = true;
+        state.currentWorkout.completedAt = new Date().toISOString();
         state.history.push(state.currentWorkout);
+        state.lastCompletedWorkout = state.currentWorkout;
         state.currentWorkout = null;
         state.activeExerciseIndex = 0;
       }
+    },
+    clearWorkout: (state) => {
+      state.currentWorkout = null;
+      state.activeExerciseIndex = 0;
     },
     addExercise: (state, action: PayloadAction<WorkoutExercise>) => {
       if (state.currentWorkout) {
@@ -182,6 +191,7 @@ const workoutSlice = createSlice({
       .addCase(completeWorkout.fulfilled, (state, action) => {
         state.loading = false;
         state.history.push(action.payload);
+        state.lastCompletedWorkout = action.payload;
         state.currentWorkout = null;
         state.activeExerciseIndex = 0;
       })

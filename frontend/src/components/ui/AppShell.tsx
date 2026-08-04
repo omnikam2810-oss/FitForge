@@ -7,9 +7,10 @@ interface AppShellProps {
   subtitle?: string;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  scrollable?: boolean;
 }
 
-export const AppShell: React.FC<AppShellProps> = ({ title, subtitle, children, actions }) => {
+export const AppShell: React.FC<AppShellProps> = ({ title, subtitle, children, actions, scrollable = true }) => {
   const { theme } = useTheme();
 
   return (
@@ -21,7 +22,11 @@ export const AppShell: React.FC<AppShellProps> = ({ title, subtitle, children, a
         </View>
         {actions ? <View>{actions}</View> : null}
       </View>
-      <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+      {scrollable ? (
+        <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+      ) : (
+        <View style={styles.content}>{children}</View>
+      )}
     </View>
   );
 };

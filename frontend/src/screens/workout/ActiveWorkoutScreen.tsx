@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert,
 import { useTheme } from '../../theme/ThemeProvider';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store/store';
-import { finishWorkout, updateSet, addSet, removeSet } from '../../store/slices/workoutSlice';
+import { finishWorkout, clearWorkout, updateSet, addSet, removeSet } from '../../store/slices/workoutSlice';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +30,20 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
   };
 
   const handleFinish = () => {
+    if (!currentWorkout?.exercises?.length) {
+      Alert.alert('No exercises added', 'Please add at least one exercise before finishing your workout.');
+      return;
+    }
+
+    const hasCompletedSet = currentWorkout.exercises.some((exercise) =>
+      exercise.sets.some((set) => set.completed)
+    );
+
+    if (!hasCompletedSet) {
+      Alert.alert('No completed sets', 'Mark at least one set as completed before finishing this workout.');
+      return;
+    }
+
     dispatch(finishWorkout());
     navigation.navigate('WorkoutSummary');
   };
@@ -38,7 +52,7 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
     Alert.alert('Cancel Workout?', 'Are you sure you want to cancel? This action cannot be undone.', [
       { text: 'No', style: 'cancel' },
       { text: 'Yes', style: 'destructive', onPress: () => {
-        dispatch(finishWorkout()); // Might want a separate clearWorkout action
+        dispatch(clearWorkout());
         navigation.navigate('WorkoutHome');
       }}
     ]);
@@ -79,7 +93,7 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
   if (!currentWorkout) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={{ color: 'white' }}>No active workout.</Text>
+        <Text style={{ color: theme.colors.text.primary, margin: theme.spacing.lg }}>No active workout.</Text>
       </SafeAreaView>
     );
   }
@@ -100,7 +114,11 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        {currentWorkout.exercises.map((exercise, exIndex) => (
+        {currentWorkout.exercises.length === 0 ? (
+          <View style={{ padding: theme.spacing.lg, alignItems: 'center' }}>
+            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: 'center' }]}>No exercises have been added yet. Tap below to choose exercises for this workout.</Text>
+          </View>
+        ) : currentWorkout.exercises.map((exercise, exIndex) => (
           <View key={exIndex} style={styles.exerciseCard}>
             <View style={styles.exerciseHeader}>
               <Text style={styles.exerciseName}>{exercise.name}</Text>

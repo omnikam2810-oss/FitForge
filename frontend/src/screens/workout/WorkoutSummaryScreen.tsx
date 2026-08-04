@@ -5,8 +5,31 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
+
 export function WorkoutSummaryScreen({ navigation }: NativeStackScreenProps<any>) {
   const { theme } = useTheme();
+  const lastWorkout = useSelector((state: RootState) => state.workout.lastCompletedWorkout);
+
+  const stats = lastWorkout ? {
+    totalMinutes: lastWorkout.durationMinutes ?? 0,
+    totalVolume: lastWorkout.exercises.reduce(
+      (sum, ex) =>
+        sum +
+        ex.sets.reduce(
+          (setSum, set) =>
+            setSum +
+            ((set.completed && set.weight && set.reps) ? set.weight * set.reps : 0),
+          0
+        ),
+      0
+    ),
+    totalSets: lastWorkout.exercises.reduce(
+      (sum, ex) => sum + ex.sets.filter((set) => set.completed).length,
+      0
+    ),
+  } : { totalMinutes: 0, totalVolume: 0, totalSets: 0 };
 
   const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: theme.colors.surface.bg },
@@ -27,31 +50,33 @@ export function WorkoutSummaryScreen({ navigation }: NativeStackScreenProps<any>
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Ionicons name="trophy" size={80} color={theme.colors.brand.primary} />
-        <Text style={styles.title}>Workout Complete!</Text>
+        <Text style={styles.title}>{lastWorkout ? 'Workout Complete!' : 'No Workout Summary'}</Text>
         
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>45</Text>
+            <Text style={styles.statVal}>{stats.totalMinutes}</Text>
             <Text style={styles.statLabel}>MINUTES</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>3200</Text>
+            <Text style={styles.statVal}>{stats.totalVolume}</Text>
             <Text style={styles.statLabel}>KG VOLUME</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>12</Text>
+            <Text style={styles.statVal}>{stats.totalSets}</Text>
             <Text style={styles.statLabel}>SETS</Text>
           </View>
         </View>
 
-        <View style={styles.prBadge}>
-          <Text style={styles.prText}>★ 1 NEW PERSONAL RECORD</Text>
-        </View>
+        {lastWorkout && (
+          <View style={styles.prBadge}>
+            <Text style={styles.prText}>★ {stats.totalSets > 0 ? 'Keep up the progress!' : 'No completed sets yet.'}</Text>
+          </View>
+        )}
 
         <View style={{ flex: 1, width: '100%', marginTop: theme.spacing.xl }} />
 
         <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('WorkoutHome')}>
-          <Text style={styles.primaryBtnText}>Save Workout</Text>
+          <Text style={styles.primaryBtnText}>{lastWorkout ? 'Save Workout' : 'Back to Home'}</Text>
         </TouchableOpacity>
         
         <TouchableOpacity onPress={() => navigation.navigate('WorkoutHome')}>
