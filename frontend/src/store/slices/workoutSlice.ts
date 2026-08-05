@@ -154,6 +154,11 @@ const workoutSlice = createSlice({
         state.currentWorkout.exercises[action.payload.exerciseIndex].notes = action.payload.notes;
       }
     },
+    updateExerciseRestSeconds: (state, action: PayloadAction<{ exerciseIndex: number; restSeconds: number }>) => {
+      if (state.currentWorkout) {
+        state.currentWorkout.exercises[action.payload.exerciseIndex].restSeconds = action.payload.restSeconds;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -177,7 +182,12 @@ const workoutSlice = createSlice({
       })
       .addCase(saveWorkout.fulfilled, (state, action) => {
         state.loading = false;
-        // Optionally update currentWorkout or history
+        if (action.payload.completed) {
+          state.history.push(action.payload);
+          state.lastCompletedWorkout = action.payload;
+          state.currentWorkout = null;
+          state.activeExerciseIndex = 0;
+        }
       })
       .addCase(saveWorkout.rejected, (state, action) => {
         state.loading = false;

@@ -1,19 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../../store/store';
-import { finishWorkout, clearWorkout, updateSet, addSet, removeSet } from '../../store/slices/workoutSlice';
+import { completeWorkout, clearWorkout, updateSet, addSet, updateExerciseNotes, updateExerciseRestSeconds } from '../../store/slices/workoutSlice';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRestTimer } from '../../hooks/useRestTimer';
+import { LogNumericKeypad } from '../../components/workout/LogNumericKeypad';
+
+type ActiveField = {
+  exerciseIndex: number;
+  setIndex: number;
+  field: 'weight' | 'reps';
+  value: string;
+};
 
 export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>) {
   const { theme } = useTheme();
   const dispatch = useDispatch<AppDispatch>();
-  const { currentWorkout } = useSelector((state: RootState) => state.workout);
+  const { currentWorkout, history } = useSelector((state: RootState) => state.workout);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [activeField, setActiveField] = useState<ActiveField | null>(null);
   const { isActive, timeRemaining, startTimer, stopTimer } = useRestTimer();
 
   useEffect(() => {
@@ -22,6 +31,21 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const previousPerformance = useMemo(() => {
+    const map: Record<string, { weight: number; reps: number }> = {};
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      const workout = history[i];
+      workout.exercises.forEach((exercise) => {
+        const key = exercise.exerciseId || exercise.name;
+        if (!map[key] && exercise.sets.length > 0) {
+          const lastSet = exercise.sets[exercise.sets.length - 1];
+          map[key] = { weight: lastSet.weight, reps: lastSet.reps };
+        }
+      });
+    }
+    return map;
+  }, [history]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -44,8 +68,12 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
       return;
     }
 
-    dispatch(finishWorkout());
-    navigation.navigate('WorkoutSummary');
+    dispatch(completeWorkout({ id: currentWorkout.id, workoutData: { ...currentWorkout, completed: true } }))
+      .then((res) => {
+        if (res.meta.requestStatus === 'fulfilled') {
+          navigation.navigate('WorkoutSummary');
+        }
+      });
   };
 
   const handleCancel = () => {
@@ -61,7 +89,46 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
   const toggleSetComplete = (exerciseIndex: number, setIndex: number, completed: boolean) => {
     dispatch(updateSet({ exerciseIndex, setIndex, updates: { completed: !completed } }));
     if (!completed) {
-      startTimer(90); // default 90s rest
+      startTimer(90);
+    }
+  };
+
+  const openFieldEditor = (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', currentValue: number) => {
+    setActiveField({ exerciseIndex, setIndex, field, value: currentValue > 0 ? String(currentValue) : '' });
+  };
+
+  const handleKeyPress = (key: string) => {
+    if (!activeField) return;
+    const nextValue = activeField.value === '0' ? key : `${activeField.value}${key}`;
+    setActiveField({ ...activeField, value: nextValue });
+  };
+
+  const handleDelete = () => {
+    if (!activeField) return;
+    const nextValue = activeField.value.slice(0, -1);
+    setActiveField({ ...activeField, value: nextValue });
+  };
+
+  const handleKeypadDone = () => {
+    if (!activeField) return;
+    const parsed = Number(activeField.value || '0');
+    dispatch(updateSet({ exerciseIndex: activeField.exerciseIndex, setIndex: activeField.setIndex, updates: { [activeField.field]: parsed } }));
+    setActiveField(null);
+  };
+
+  const handleCalculator = () => {
+    if (activeField) {
+      navigation.navigate('PlateCalculator');
+    }
+  };
+
+  const handleToggleRest = (exerciseIndex: number, currentSeconds: number) => {
+    const nextSeconds = currentSeconds === 0 ? 40 : 0;
+    dispatch(updateExerciseRestSeconds({ exerciseIndex, restSeconds: nextSeconds }));
+    if (nextSeconds > 0) {
+      startTimer(nextSeconds);
+    } else {
+      stopTimer();
     }
   };
 
@@ -72,22 +139,31 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
     timer: { color: theme.colors.brand.primary, fontFamily: theme.typography.body.fontFamily, fontWeight: 'bold' },
     finishBtn: { backgroundColor: theme.colors.brand.primary, paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm, borderRadius: theme.borderRadius.sm },
     finishBtnText: { color: theme.colors.text.inverse, fontWeight: 'bold' },
-    exerciseCard: { backgroundColor: theme.colors.surface.card, marginVertical: theme.spacing.sm, paddingVertical: theme.spacing.md },
-    exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: theme.spacing.md, marginBottom: theme.spacing.sm },
-    exerciseName: { color: theme.colors.brand.primary, fontFamily: theme.typography.h3.fontFamily, fontWeight: 'bold', fontSize: 18 },
+    exerciseCard: { backgroundColor: theme.colors.surface.card, marginVertical: theme.spacing.sm, paddingBottom: theme.spacing.md, borderRadius: theme.borderRadius.lg, marginHorizontal: theme.spacing.md, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
+    exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: theme.spacing.md, paddingTop: theme.spacing.md, marginBottom: theme.spacing.sm },
+    exerciseName: { color: theme.colors.brand.primary, fontFamily: theme.typography.h3.fontFamily, fontWeight: 'bold', fontSize: 18, flexShrink: 1 },
+    notesInput: { backgroundColor: theme.colors.surface.bg, borderWidth: 1, borderColor: theme.colors.border.default, borderRadius: theme.borderRadius.sm, padding: theme.spacing.sm, marginHorizontal: theme.spacing.md, color: theme.colors.text.primary, minHeight: 58, textAlignVertical: 'top' },
+    notesLabel: { color: theme.colors.text.secondary, marginHorizontal: theme.spacing.md, marginBottom: theme.spacing.xs, fontSize: 13 },
+    restRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: theme.spacing.md, marginTop: theme.spacing.sm },
+    restText: { color: theme.colors.text.secondary, fontFamily: theme.typography.body.fontFamily },
+    restToggleText: { color: theme.colors.brand.primary, fontFamily: theme.typography.body.fontFamily, fontWeight: 'bold' },
     setRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: theme.spacing.xs, paddingHorizontal: theme.spacing.md },
     setColHeader: { color: theme.colors.text.muted, fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
     setNum: { width: 30, textAlign: 'center', color: theme.colors.text.secondary, backgroundColor: theme.colors.surface.bg, borderRadius: 4, padding: 2 },
-    prevCol: { flex: 1, textAlign: 'center', color: theme.colors.text.muted, fontSize: 12 },
-    input: { width: 60, height: 35, backgroundColor: theme.colors.surface.bg, borderRadius: 6, color: theme.colors.text.primary, textAlign: 'center', marginHorizontal: 5, borderWidth: 1, borderColor: theme.colors.border.default },
+    prevCol: { flex: 1, textAlign: 'center', color: theme.colors.text.secondary, fontSize: 12 },
+    fieldCell: { width: 60, height: 38, backgroundColor: theme.colors.surface.bg, borderRadius: theme.borderRadius.sm, borderWidth: 1, borderColor: theme.colors.border.default, justifyContent: 'center', alignItems: 'center', marginHorizontal: 5 },
+    fieldText: { color: theme.colors.text.primary, fontSize: 15, fontWeight: '600' },
     checkBtn: { width: 40, height: 35, borderRadius: 6, backgroundColor: theme.colors.surface.bg, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
     checkBtnCompleted: { backgroundColor: theme.colors.status.success },
+    completedRow: { backgroundColor: `${theme.colors.status.success}20` },
     addSetBtn: { padding: theme.spacing.sm, alignItems: 'center', marginTop: theme.spacing.sm },
     addSetText: { color: theme.colors.text.secondary, fontWeight: 'bold' },
     addExerciseBtn: { backgroundColor: theme.colors.surface.card, margin: theme.spacing.md, padding: theme.spacing.md, borderRadius: theme.borderRadius.md, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.brand.primary },
     addExerciseText: { color: theme.colors.brand.primary, fontWeight: 'bold', fontSize: 16 },
-    restTimerOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: theme.colors.brand.primary, padding: theme.spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    restTimerText: { color: theme.colors.text.inverse, fontWeight: 'bold', fontSize: 18 }
+    emptyState: { padding: theme.spacing.lg, alignItems: 'center' },
+    emptyText: { color: theme.colors.text.secondary, textAlign: 'center' },
+    tableHeader: { borderBottomWidth: 1, borderBottomColor: theme.colors.surface.bg, paddingBottom: theme.spacing.sm },
+    exerciseNameIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: `${theme.colors.brand.primary}20`, justifyContent: 'center', alignItems: 'center' },
   });
 
   if (!currentWorkout) {
@@ -102,10 +178,10 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleCancel}>
-          <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+          <Ionicons name="chevron-back" size={24} color={theme.colors.text.secondary} />
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>{currentWorkout.name}</Text>
+          <Text style={styles.headerTitle}>Log Workout</Text>
           <Text style={styles.timer}>{formatTime(elapsedSeconds)}</Text>
         </View>
         <TouchableOpacity style={styles.finishBtn} onPress={handleFinish}>
@@ -113,72 +189,104 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: activeField ? 320 : 120 }}>
         {currentWorkout.exercises.length === 0 ? (
-          <View style={{ padding: theme.spacing.lg, alignItems: 'center' }}>
-            <Text style={[theme.typography.body, { color: theme.colors.text.secondary, textAlign: 'center' }]}>No exercises have been added yet. Tap below to choose exercises for this workout.</Text>
+          <View style={styles.emptyState}>
+            <Text style={[theme.typography.body, styles.emptyText]}>No exercises have been added yet. Use the button below to add one.</Text>
           </View>
-        ) : currentWorkout.exercises.map((exercise, exIndex) => (
-          <View key={exIndex} style={styles.exerciseCard}>
-            <View style={styles.exerciseHeader}>
-              <Text style={styles.exerciseName}>{exercise.name}</Text>
-              <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text.secondary} />
-            </View>
-            <View style={[styles.setRow, { borderBottomWidth: 1, borderBottomColor: theme.colors.surface.bg }]}>
-              <Text style={[styles.setColHeader, { width: 30 }]}>SET</Text>
-              <Text style={[styles.setColHeader, { flex: 1 }]}>PREVIOUS</Text>
-              <Text style={[styles.setColHeader, { width: 60 }]}>KG</Text>
-              <Text style={[styles.setColHeader, { width: 60 }]}>REPS</Text>
-              <Text style={[styles.setColHeader, { width: 40, marginLeft: 10 }]}>✓</Text>
-            </View>
-            
-            {exercise.sets.map((set, setIndex) => (
-              <View key={setIndex} style={[styles.setRow, set.completed && { backgroundColor: theme.colors.surface.bg }]}>
-                <Text style={styles.setNum}>{setIndex + 1}</Text>
-                <Text style={styles.prevCol}>-</Text>
-                <TextInput 
-                  style={styles.input} 
-                  value={set.weight.toString()} 
-                  keyboardType="numeric"
-                  onChangeText={(val) => dispatch(updateSet({ exerciseIndex: exIndex, setIndex, updates: { weight: Number(val) } }))}
-                />
-                <TextInput 
-                  style={styles.input} 
-                  value={set.reps.toString()} 
-                  keyboardType="numeric"
-                  onChangeText={(val) => dispatch(updateSet({ exerciseIndex: exIndex, setIndex, updates: { reps: Number(val) } }))}
-                />
-                <TouchableOpacity 
-                  style={[styles.checkBtn, set.completed && styles.checkBtnCompleted]} 
-                  onPress={() => toggleSetComplete(exIndex, setIndex, set.completed)}
-                >
-                  <Ionicons name="checkmark" size={20} color={set.completed ? theme.colors.text.inverse : theme.colors.text.muted} />
+        ) : currentWorkout.exercises.map((exercise, exIndex) => {
+          const previous = previousPerformance[exercise.exerciseId || exercise.name];
+          const previousLabel = previous ? `${previous.weight}kg x ${previous.reps}` : '-';
+
+          return (
+            <View key={exercise.id || String(exIndex)} style={styles.exerciseCard}>
+              <View style={styles.exerciseHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={styles.exerciseNameIcon}>
+                    <Ionicons name="barbell" size={18} color={theme.colors.brand.primary} />
+                  </View>
+                  <Text style={[styles.exerciseName, { marginLeft: theme.spacing.sm }]}>{exercise.name}</Text>
+                </View>
+                <TouchableOpacity onPress={() => {}}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.text.secondary} />
                 </TouchableOpacity>
               </View>
-            ))}
 
-            <TouchableOpacity 
-              style={styles.addSetBtn} 
-              onPress={() => dispatch(addSet({ exerciseIndex: exIndex, set: { id: Date.now().toString(), reps: 0, weight: 0, completed: false, type: 'normal' } }))}
-            >
-              <Text style={styles.addSetText}>+ Add Set</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+              <Text style={styles.notesLabel}>Notes</Text>
+              <TextInput
+                style={styles.notesInput}
+                value={exercise.notes ?? ''}
+                onChangeText={(text) => dispatch(updateExerciseNotes({ exerciseIndex: exIndex, notes: text }))}
+                placeholder="Add notes here..."
+                placeholderTextColor={theme.colors.text.muted}
+                multiline
+              />
+
+              <View style={styles.restRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="time-outline" size={18} color={theme.colors.brand.primary} />
+                  <Text style={[styles.restText, { marginLeft: theme.spacing.xs }]}>Rest Timer: {exercise.restSeconds ? `${exercise.restSeconds}s` : 'OFF'}</Text>
+                </View>
+                <TouchableOpacity onPress={() => handleToggleRest(exIndex, exercise.restSeconds)}>
+                  <Text style={styles.restToggleText}>{exercise.restSeconds ? 'Turn OFF' : 'Turn ON'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.setRow, styles.tableHeader]}> 
+                <Text style={[styles.setColHeader, { width: 30 }]}>SET</Text>
+                <Text style={[styles.setColHeader, { flex: 1 }]}>PREVIOUS</Text>
+                <Text style={[styles.setColHeader, { width: 60 }]}>KG</Text>
+                <Text style={[styles.setColHeader, { width: 60 }]}>REPS</Text>
+                <Text style={[styles.setColHeader, { width: 40, marginLeft: 10 }]}>✓</Text>
+              </View>
+
+              {exercise.sets.map((set, setIndex) => (
+                <View key={set.id} style={[styles.setRow, set.completed && styles.completedRow]}>
+                  <Text style={styles.setNum}>{setIndex + 1}</Text>
+                  <Text style={styles.prevCol}>{previousLabel}</Text>
+                  <TouchableOpacity style={styles.fieldCell} onPress={() => openFieldEditor(exIndex, setIndex, 'weight', set.weight)}>
+                    <Text style={styles.fieldText}>{set.weight || '-'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.fieldCell} onPress={() => openFieldEditor(exIndex, setIndex, 'reps', set.reps)}>
+                    <Text style={styles.fieldText}>{set.reps || '-'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.checkBtn, set.completed && styles.checkBtnCompleted]}
+                    onPress={() => toggleSetComplete(exIndex, setIndex, set.completed)}
+                  >
+                    <Ionicons name="checkmark" size={20} color={set.completed ? theme.colors.text.inverse : theme.colors.text.muted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.addSetBtn}
+                onPress={() => dispatch(addSet({ exerciseIndex: exIndex, set: { id: Date.now().toString(), reps: 0, weight: 0, completed: false, type: 'normal' } }))}
+              >
+                <Text style={styles.addSetText}>+ Add Set</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
 
         <TouchableOpacity style={styles.addExerciseBtn} onPress={() => navigation.navigate('ExercisePicker')}>
           <Text style={styles.addExerciseText}>+ Add Exercise</Text>
         </TouchableOpacity>
       </ScrollView>
 
+      <LogNumericKeypad
+        visible={Boolean(activeField)}
+        label={activeField ? `${activeField.field.toUpperCase()} entry` : ''}
+        value={activeField?.value ?? ''}
+        onKeyPress={handleKeyPress}
+        onDelete={handleDelete}
+        onDone={handleKeypadDone}
+        onCalculator={handleCalculator}
+      />
+
       {isActive && (
         <View style={styles.restTimerOverlay}>
           <Text style={styles.restTimerText}>Rest: {formatTime(timeRemaining)}</Text>
           <TouchableOpacity onPress={stopTimer}>
-            <Ionicons name="play-skip-forward" size={24} color={theme.colors.text.inverse} />
-          </TouchableOpacity>
-        </View>
-      )}
-    </SafeAreaView>
-  );
+            <Ionicons name="pause" size={24} color={theme.colors.text.inverse} />
 }
