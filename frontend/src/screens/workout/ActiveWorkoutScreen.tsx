@@ -164,6 +164,8 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
     emptyText: { color: theme.colors.text.secondary, textAlign: 'center' },
     tableHeader: { borderBottomWidth: 1, borderBottomColor: theme.colors.surface.bg, paddingBottom: theme.spacing.sm },
     exerciseNameIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: `${theme.colors.brand.primary}20`, justifyContent: 'center', alignItems: 'center' },
+    restTimerOverlay: { position: 'absolute', left: theme.spacing.md, right: theme.spacing.md, bottom: theme.spacing.lg, backgroundColor: theme.colors.surface.card, borderRadius: theme.borderRadius.lg, padding: theme.spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 6 },
+    restTimerText: { color: theme.colors.text.primary, fontWeight: 'bold' },
   });
 
   if (!currentWorkout) {
@@ -289,4 +291,10 @@ export function ActiveWorkoutScreen({ navigation }: NativeStackScreenProps<any>)
           <Text style={styles.restTimerText}>Rest: {formatTime(timeRemaining)}</Text>
           <TouchableOpacity onPress={stopTimer}>
             <Ionicons name="pause" size={24} color={theme.colors.text.inverse} />
+          </TouchableOpacity>
+        </View>
+      )}
+    </SafeAreaView>
+  );
 }
+
