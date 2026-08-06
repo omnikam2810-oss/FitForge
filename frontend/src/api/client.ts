@@ -1,24 +1,9 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { API_URL } from '../config/api';
 
 let _store: any = null;
 export const injectStore = (store: any) => { _store = store; };
-
-const getDefaultApiUrl = () => {
-  const expoExtra = (Constants.expoConfig?.extra || (Constants.manifest as any)?.extra) as any;
-  const extraApiUrl = expoExtra?.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_API_URL;
-  if (extraApiUrl) {
-    return extraApiUrl;
-  }
-
-  // Fallback for physical device testing on the same Wi-Fi network.
-  // Replace with your machine's IP if needed.
-  return 'http://192.168.0.101:5000/api/v1';
-};
-
-const API_URL = getDefaultApiUrl();
 
 export const apiClient = axios.create({
   baseURL: API_URL,
